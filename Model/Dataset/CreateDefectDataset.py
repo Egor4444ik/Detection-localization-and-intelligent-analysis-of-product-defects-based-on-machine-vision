@@ -1,5 +1,5 @@
 import numpy as np
-
+from .Augmentation import ObjectAugment
 
 class DeformedObject:
     OBJECT = 0
@@ -8,6 +8,7 @@ class DeformedObject:
     CHIP = 3
     SCRATCH = 4
     LOCAL_DEFORMATION = 5
+
     def __init__(self, points):
         self.points = np.asarray(
             points,
@@ -22,10 +23,8 @@ class DeformedObject:
         self.v = None
         self.w = None
         self.mask = None
-        self.labels = np.zeros(
-            len(self.points),
-            dtype=np.int64
-        )
+        self.labels = np.zeros(len(self.points), dtype=np.int64)
+
     def _get_local_coordinate_system(
             self,
             points,
@@ -100,6 +99,7 @@ class DeformedObject:
         self.w = (
             relative @ self.normal
         )
+
     def _select_center(self, points):
         index = np.random.randint(
             0,
@@ -108,6 +108,7 @@ class DeformedObject:
         self.center = (
             points[index].copy()
         )
+
     def create_dent(
             self,
             radius,
@@ -162,6 +163,7 @@ class DeformedObject:
             self.DENT
         )
         self.mask = mask
+
     def create_bump(
             self,
             radius,
@@ -216,6 +218,7 @@ class DeformedObject:
             self.BUMP
         )
         self.mask = mask
+
     def create_chip(
             self,
             radius,
@@ -335,6 +338,7 @@ class DeformedObject:
             self.SCRATCH
         )
         self.mask = mask
+
     def create_local_deformation(
             self,
             radius,
@@ -475,4 +479,6 @@ class DeformedObject:
                     amplitude=amplitude
                 )
 
-        return self.points, self.labels
+        augmented_points = ObjectAugment(self.points).full_augment()
+
+        return augmented_points, self.labels
