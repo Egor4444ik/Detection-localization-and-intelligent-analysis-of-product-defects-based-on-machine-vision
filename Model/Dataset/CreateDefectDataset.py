@@ -1,0 +1,355 @@
+import numpy as np
+
+class DeformedObject:
+    def __init__(self, points, radius):
+        self.points = points
+        self.center = None
+        self.local_center = None
+        self.normal = None
+        self.tangent1 = None
+        self.tangent2 = None
+        self.u = None
+        self.v = None
+        self.w = None
+        self.mask = None
+        self.defect_mask = None
+
+    def _get_local_coordinate_system(self, points, center, radius):
+        center = np.asarray(center, dtype=np.float64)
+        distances = np.linalg.norm(points - center, axis=1)
+        local_radius = radius
+
+        for _ in range(5):
+            indices = distances <= local_radius
+
+            if np.sum(indices) >= 10:
+                break
+
+            local_radius *= 1.5
+
+        local = points[indices]
+        self.local_center = np.mean(local, axis=0)
+        centered = local - self.local_center
+        covariance = np.cov(centered.T)
+        eigenvalues, eigenvectors = np.linalg.eigh(covariance)
+        normal = eigenvectors[:, np.argmin(eigenvalues)]
+        self.normal = normal / np.linalg.norm(normal)
+        tangent_candidates = eigenvectors[:, np.argsort(eigenvalues)[-2:]]
+        tangent1 = tangent_candidates[:, 0]
+        tangent2 = tangent_candidates[:, 1]
+        self.tangent1 = tangent1 / np.linalg.norm(tangent1)
+        self.tangent2 = tangent2 / np.linalg.norm(tangent2)
+        relative = points - self.local_center
+        self.u = relative @ tangent1
+        self.v = relative @ tangent2
+        self.w = relative @ normal
+
+
+    def _select_center(self, points):
+        index = np.random.randint(0, len(points))
+        self.center = points[index].copy()
+
+    def create_dent(self, radius, depth):
+        self._select_center(self.points)
+        self._get_local_coordinate_system(self.points, self.center, radius)
+
+        distance = np.sqrt(self.u ** 2 + self.v ** 2)
+
+        mask = distance <= radius
+
+        normalized_distance = np.zeros_like(distance)
+
+        normalized_distance[mask] = (
+            distance[mask] / radius
+        )
+
+        influence = np.zeros_like(distance)
+
+        influence[mask] = (
+            0.5
+            * (
+                1.0
+                + np.cos(
+                    np.pi * normalized_distance[mask]
+                )
+            )
+        )
+
+        new_points = self.points.copy()
+
+        # Внутрь поверхности
+        new_points[mask] -= (
+            self.normal * depth * influence[mask, None]
+        )
+        self.points = new_points
+        self.mask = mask
+
+    def create_bump(self, radius, height):
+        self._select_center(self.points)
+        self._get_local_coordinate_system(self.points, self.center, radius)
+        distance = np.sqrt(self.u ** 2 + self.v ** 2)
+        mask = distance <= radius
+        normalized_distance = np.zeros_like(distance)
+        normalized_distance[mask] = (
+            distance[mask] / radius
+        )
+        influence = np.zeros_like(distance)
+        influence[mask] = (
+            0.5
+            * (
+                1.0
+                + np.cos(
+                    np.pi * normalized_distance[mask]
+                )
+            )
+        )
+        new_points = self.points.copy()
+        new_points[mask] += (
+            self.normal * height * influence[mask, None]
+        )
+
+        self.points = new_points
+        self.mask = mask
+
+    def create_chip(self, radius):
+        self._select_center(self.points)
+        self._get_local_coordinate_system(self.points, self.center, radius)
+        distance = np.sqrt(self.u ** 2 + self.v ** 2)
+        defect_mask = distance <= radius
+        new_points = self.points[~defect_mask]
+
+        self.points = new_points
+        self.defect_mask = defect_mask
+
+    def create_scratch(self, length, width, depth):
+        radius = max(length, width) * 1.2
+        self._select_center(self.points)
+        self._get_local_coordinate_system(self.points, self.center, radius)
+        mask = (
+            (np.abs(self.u) <= length / 2.0)
+            &
+            (np.abs(self.v) <= width / 2.0)
+        )
+        new_points = self.points.copy()
+        width_factor = np.zeros_like(self.v)
+        width_factor[mask] = (
+            1.0
+            -
+            np.abs(self.v[mask]) / (width / 2.0)
+        )
+        length_factor = np.zeros_like(self.u)
+        length_factor[mask] = (
+            1.0
+            -
+            np.abs(self.u[mask]) / (length / 2.0)
+        )
+        influence = (
+            width_factor
+            * length_factor
+        )
+        new_points[mask] -= (
+            self.normal
+            * depth
+            * influence[mask, None]
+        )
+
+        self.points = new_points
+        self.mask = mask
+
+    def create_local_deformation(self, radius, amplitude):
+            self._select_center(self.points)
+            self._get_local_coordinate_system(self.points, self.center, radius)
+            distance_squared = (
+                self.u ** 2 + self.v ** 2
+            )
+            mask = distance_squared <= radius ** 2
+            influence = np.exp(
+                -distance_squared
+                /
+                (2.0 * (radius / 2.0) ** 2)
+            )
+            influence[~mask] = 0.0
+            new_points = self.points.copy()
+            new_points += (
+                self.normal
+                * amplitude
+                * influence[:, None]
+            )
+
+            self.points = new_points
+            self.mask = mask
+
+    def create_random_defects(
+            self,
+            min_defects=1,
+            max_defects=10,
+            seed=None):
+
+        if seed is not None:
+            np.random.seed(seed)
+
+        defects_count = np.random.randint(
+            min_defects,
+            max_defects + 1
+        )
+        self.defects = []
+        min_point = np.min(self.points, axis=0)
+        max_point = np.max(self.points, axis=0)
+        scene_size = np.linalg.norm(
+            max_point - min_point
+        )
+        defect_types = [
+            "dent",
+            "bump",
+            "chip",
+            "scratch",
+            "local_deformation"
+        ]
+        for i in range(defects_count):
+            defect_type = np.random.choice(
+                defect_types
+            )
+            if len(self.points) < 20:
+                break
+            radius = np.random.uniform(
+                scene_size * 0.01,
+                scene_size * 0.05
+            )
+            if defect_type == "dent":
+
+                depth = np.random.uniform(
+                    scene_size * 0.003,
+                    scene_size * 0.015
+                )
+
+                self.create_dent(
+                    radius=radius,
+                    depth=depth
+                )
+
+                self.defects.append({
+                    "type": "dent",
+                    "radius": radius,
+                    "depth": depth,
+                    "center": self.center.copy()
+                })
+
+            # ----------------------------------------------------
+            # Выпуклость
+            # ----------------------------------------------------
+
+            elif defect_type == "bump":
+
+                height = np.random.uniform(
+                    scene_size * 0.003,
+                    scene_size * 0.015
+                )
+
+                self.create_bump(
+                    radius=radius,
+                    height=height
+                )
+
+                self.defects.append({
+                    "type": "bump",
+                    "radius": radius,
+                    "height": height,
+                    "center": self.center.copy()
+                })
+
+            # ----------------------------------------------------
+            # Скол
+            # ----------------------------------------------------
+
+            elif defect_type == "chip":
+
+                self.create_chip(
+                    radius=radius
+                )
+
+                self.defects.append({
+                    "type": "chip",
+                    "radius": radius,
+                    "center": self.center.copy()
+                })
+
+            # ----------------------------------------------------
+            # Отверстие
+            # ----------------------------------------------------
+
+            elif defect_type == "hole":
+
+                hole_radius = radius * np.random.uniform(
+                    0.4,
+                    0.7
+                )
+
+                self.create_hole(
+                    radius=hole_radius
+                )
+
+                self.defects.append({
+                    "type": "hole",
+                    "radius": hole_radius,
+                    "center": self.center.copy()
+                })
+
+            # ----------------------------------------------------
+            # Царапина
+            # ----------------------------------------------------
+
+            elif defect_type == "scratch":
+
+                length = np.random.uniform(
+                    scene_size * 0.03,
+                    scene_size * 0.15
+                )
+
+                width = np.random.uniform(
+                    scene_size * 0.003,
+                    scene_size * 0.015
+                )
+
+                depth = np.random.uniform(
+                    scene_size * 0.001,
+                    scene_size * 0.008
+                )
+
+                self.create_scratch(
+                    length=length,
+                    width=width,
+                    depth=depth
+                )
+
+                self.defects.append({
+                    "type": "scratch",
+                    "length": length,
+                    "width": width,
+                    "depth": depth,
+                    "center": self.center.copy()
+                })
+
+            # ----------------------------------------------------
+            # Локальная деформация
+            # ----------------------------------------------------
+
+            elif defect_type == "local_deformation":
+
+                amplitude = np.random.uniform(
+                    scene_size * 0.002,
+                    scene_size * 0.012
+                )
+
+                self.create_local_deformation(
+                    radius=radius,
+                    amplitude=amplitude
+                )
+
+                self.defects.append({
+                    "type": "local_deformation",
+                    "radius": radius,
+                    "amplitude": amplitude,
+                    "center": self.center.copy()
+                })
+
+        return self.points, self.defects
