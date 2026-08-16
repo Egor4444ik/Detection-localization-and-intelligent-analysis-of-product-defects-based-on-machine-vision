@@ -5,7 +5,7 @@ import pyvista
 from Model.Model import RGCNN_Seg
 from .Dataset.CreateDefectDataset import DeformedObject
 
-def load_model(model_path, vertice=2048, num_classes=6):
+def load_model(model_path, vertice=11755, num_classes=6):
     model = RGCNN_Seg(
         vertice=vertice,
         F=[128, 512, 1024, 512, 128, 6],
@@ -18,12 +18,7 @@ def load_model(model_path, vertice=2048, num_classes=6):
     return model
 
 def predict_cloud(model, points, cat=0):
-    if len(points) >= 2048:
-        idx = np.random.choice(len(points), 2048, replace=False)
-    else:
-        idx = np.random.choice(len(points), 2048, replace=True)
-    selected = points[idx]
-    pts = torch.from_numpy(selected).float().unsqueeze(0)
+    pts = torch.from_numpy(points).float().unsqueeze(0)
     cat_t = torch.tensor([cat], dtype=torch.long)
 
     with torch.no_grad():
@@ -31,7 +26,7 @@ def predict_cloud(model, points, cat=0):
         probs = torch.softmax(logits, dim=2)
         probs_np = probs.squeeze(0).cpu().numpy()
         pred_labels = np.argmax(probs_np, axis=1)
-    return pred_labels, selected, probs_np
+    return pred_labels, points, probs_np
 
 def compute_metrics(pred_labels, true_labels, num_classes=6):
     pred = pred_labels.astype(np.int64)

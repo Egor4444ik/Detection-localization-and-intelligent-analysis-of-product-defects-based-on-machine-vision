@@ -6,10 +6,8 @@ import os
 from .CreateDefectDataset import DeformedObject
 
 class ObjectsDataset(Dataset):
-    def __init__(self, input_points, num_points=2048, object_label=1, background_label=0,
-                 prob_object=0.7, augment=True, category=0):
+    def __init__(self, input_points, num_points=11755, category=0):
         self.num_points = num_points
-        self.augment = augment
         self.category = category
         self.original_points = input_points
         if len(self.original_points) >= num_points:
@@ -35,23 +33,8 @@ class ObjectsDataset(Dataset):
             seed=idx
         )
         labels = labels.astype(np.int64)
-        if self.augment:
-            points_aug = self._apply_augmentation(points_aug)
         pts_tensor = torch.from_numpy(points_aug).float()
         labels_tensor = torch.from_numpy(labels).long()
         cat_tensor = torch.tensor(self.category, dtype=torch.long)
+        print(f"Уникальных меток: {np.unique(labels)}, в количестве этих классов: {np.bincount(labels)}")
         return pts_tensor, labels_tensor, cat_tensor
-
-    def _apply_augmentation(self, points):
-        if np.random.rand() > 0.5:
-            angle = np.random.uniform(0, 2*np.pi)
-            rot = np.array([[np.cos(angle), -np.sin(angle), 0],
-                            [np.sin(angle), np.cos(angle), 0],
-                            [0, 0, 1]])
-            points = points @ rot.T
-        if np.random.rand() > 0.5:
-            scale = np.random.uniform(0.9, 1.1)
-            points *= scale
-        noise = np.random.normal(0, 0.005, size=points.shape)
-        points += noise
-        return points

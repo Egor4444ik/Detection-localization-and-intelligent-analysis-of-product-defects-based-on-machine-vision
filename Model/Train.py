@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -5,7 +6,7 @@ from torch.utils.data import DataLoader
 from .Model import RGCNN_Seg
 from .Dataset.Dataset import ObjectsDataset
 from .utils.Metrix import evaluate_model
-import numpy as np
+from .utils.Losses import FocalLoss, dice_loss
 
 def train(input_3_dim_object_path):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -16,7 +17,7 @@ def train(input_3_dim_object_path):
         points = points.reshape(-1, 3)
     print(f"Loaded {len(points)} points.")
 
-    vertice = 2048
+    vertice = 11755
     F = [128, 512, 1024, 512, 128, 6]
     K = [6, 5, 3, 1, 1, 1]
     num_classes = 6
@@ -25,14 +26,15 @@ def train(input_3_dim_object_path):
 
     model = RGCNN_Seg(vertice, F, K, num_classes, num_categories, regularization).to(device)
 
-    dataset = ObjectsDataset(points, num_points=vertice, augment=True, category=0)
-    val_dataset = ObjectsDataset(points, num_points=vertice, augment=False, category=0)
+    dataset = ObjectsDataset(points, num_points=vertice, category=0)
+    val_dataset = ObjectsDataset(points, num_points=vertice, category=0)
 
-    train_loader = DataLoader(dataset, batch_size=26, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=26, shuffle=False, num_workers=4)
+    train_loader = DataLoader(dataset, batch_size=26, shuffle=True, num_workers=8)
+    val_loader = DataLoader(val_dataset, batch_size=26, shuffle=False, num_workers=8)
 
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    criterion = nn.CrossEntropyLoss()
+
+    criterion_ce = FocalLoss(alpha=0.25, gamma=2.0)
 
     num_epochs = 50
     eval_freq = 30
@@ -44,8 +46,12 @@ def train(input_3_dim_object_path):
         for pts, labels, cat in train_loader:
             pts, labels, cat = pts.to(device), labels.to(device), cat.to(device)
             optimizer.zero_grad()
+
             logits = model(pts, cat)
-            loss = criterion(logits.permute(0, 2, 1), labels)
+
+            ce_loss = criterion_ce(logits, labels)
+            dice = dice_loss(logits, labels, num_classes=6)
+            loss = ce_loss + dice
 
             reg_loss = sum(p.norm(2) for p in model.parameters()) * 1e-5
             total_loss = loss + reg_loss

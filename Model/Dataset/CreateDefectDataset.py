@@ -26,17 +26,13 @@ class DeformedObject(ObjectAugment):
         self.mask = None
         self.labels = np.zeros(len(self.points), dtype=np.int64)
 
-    def _get_local_coordinate_system(
-            self,
-            points,
-            center,
-            radius):
+    def _get_local_coordinate_system(self, radius):
         center = np.asarray(
-            center,
+            self.center,
             dtype=np.float64
         )
         distances = np.linalg.norm(
-            points - center,
+            self.points - center,
             axis=1
         )
         local_radius = radius
@@ -47,7 +43,7 @@ class DeformedObject(ObjectAugment):
             if np.sum(indices) >= 10:
                 break
             local_radius *= 1.5
-        local = points[indices]
+        local = self.points[indices]
         self.local_center = np.mean(
             local,
             axis=0
@@ -89,7 +85,7 @@ class DeformedObject(ObjectAugment):
             np.linalg.norm(tangent2)
         )
         relative = (
-            points - self.local_center
+            self.points - self.local_center
         )
         self.u = (
             relative @ self.tangent1
@@ -101,24 +97,18 @@ class DeformedObject(ObjectAugment):
             relative @ self.normal
         )
 
-    def _select_center(self, points):
+    def _select_center(self):
         index = np.random.randint(
             0,
-            len(points)
+            len(self.points)
         )
         self.center = (
-            points[index].copy()
+            self.points[index].copy()
         )
 
     def create_dent(self, radius, depth):
-        self._select_center(
-            self.points
-        )
-        self._get_local_coordinate_system(
-            self.points,
-            self.center,
-            radius
-        )
+        self._select_center()
+        self._get_local_coordinate_system(radius)
         distance = np.sqrt(
             self.u ** 2
             +
@@ -160,18 +150,9 @@ class DeformedObject(ObjectAugment):
         self.labels[mask] = (self.DENT)
         self.mask = mask
 
-    def create_bump(
-            self,
-            radius,
-            height):
-        self._select_center(
-            self.points
-        )
-        self._get_local_coordinate_system(
-            self.points,
-            self.center,
-            radius
-        )
+    def create_bump(self, radius, height):
+        self._select_center()
+        self._get_local_coordinate_system(radius)
         distance = np.sqrt(
             self.u ** 2
             +
@@ -215,18 +196,9 @@ class DeformedObject(ObjectAugment):
         )
         self.mask = mask
 
-    def create_chip(
-            self,
-            radius,
-            depth):
-        self._select_center(
-            self.points
-        )
-        self._get_local_coordinate_system(
-            self.points,
-            self.center,
-            radius
-        )
+    def create_chip(self, radius, depth):
+        self._select_center()
+        self._get_local_coordinate_system(radius)
         distance = np.sqrt(
             self.u ** 2
             +
@@ -269,24 +241,14 @@ class DeformedObject(ObjectAugment):
             self.CHIP
         )
         self.mask = mask
-    def create_scratch(
-            self,
-            length,
-            width,
-            depth):
+    def create_scratch(self, length, width, depth):
         radius = (
             max(length, width)
             *
             1.2
         )
-        self._select_center(
-            self.points
-        )
-        self._get_local_coordinate_system(
-            self.points,
-            self.center,
-            radius
-        )
+        self._select_center()
+        self._get_local_coordinate_system(radius)
         mask = (
             (np.abs(self.u)
              <= length / 2.0)
@@ -335,18 +297,9 @@ class DeformedObject(ObjectAugment):
         )
         self.mask = mask
 
-    def create_local_deformation(
-            self,
-            radius,
-            amplitude):
-        self._select_center(
-            self.points
-        )
-        self._get_local_coordinate_system(
-            self.points,
-            self.center,
-            radius
-        )
+    def create_local_deformation(self, radius, amplitude):
+        self._select_center()
+        self._get_local_coordinate_system(radius)
         distance_squared = (
             self.u ** 2
             +
@@ -381,11 +334,8 @@ class DeformedObject(ObjectAugment):
             self.LOCAL_DEFORMATION
         )
         self.mask = mask
-    def create_random_defects(
-            self,
-            min_defects=1,
-            max_defects=10,
-            seed=None):
+
+    def create_random_defects(self, min_defects=1, max_defects=10, seed=None):
         if seed is not None:
             np.random.seed(seed)
         defects_count = np.random.randint(
@@ -411,65 +361,48 @@ class DeformedObject(ObjectAugment):
             "local_deformation"
         ]
         for _ in range(defects_count):
-            if len(self.points) < 20:
-                break
             defect_type = np.random.choice(
                 defect_types
             )
             radius = np.random.uniform(
-                scene_size * 0.01,
-                scene_size * 0.05
+                scene_size * 0.05,
+                scene_size * 0.15
             )
+            avg_spacing = 2*scene_size / (len(self.points) ** (1/3))
+            
             if defect_type == "dent":
-                depth = np.random.uniform(
-                    scene_size * 0.003,
-                    scene_size * 0.015
-                )
+                radius = np.random.uniform(avg_spacing * 2.0, avg_spacing * 6.0)
+                depth = np.random.uniform(avg_spacing * 0.5, avg_spacing * 2.0)                
                 self.create_dent(
                     radius=radius,
                     depth=depth
                 )
             elif defect_type == "bump":
-                height = np.random.uniform(
-                    scene_size * 0.003,
-                    scene_size * 0.015
-                )
+                radius = np.random.uniform(avg_spacing * 2.0, avg_spacing * 6.0)
+                height = np.random.uniform(avg_spacing * 0.5, avg_spacing * 2.0)
                 self.create_bump(
                     radius=radius,
                     height=height
                 )
             elif defect_type == "chip":
-                depth = np.random.uniform(
-                    scene_size * 0.005,
-                    scene_size * 0.02
-                )
+                radius = np.random.uniform(avg_spacing * 2.0, avg_spacing * 6.0)
+                depth = np.random.uniform(avg_spacing * 0.5, avg_spacing * 2.0)
                 self.create_chip(
                     radius=radius,
                     depth=depth
                 )
             elif defect_type == "scratch":
-                length = np.random.uniform(
-                    scene_size * 0.03,
-                    scene_size * 0.15
-                )
-                width = np.random.uniform(
-                    scene_size * 0.003,
-                    scene_size * 0.015
-                )
-                depth = np.random.uniform(
-                    scene_size * 0.001,
-                    scene_size * 0.008
-                )
+                length = np.random.uniform(avg_spacing * 4.0, avg_spacing * 15.0)
+                width = np.random.uniform(avg_spacing * 0.5, avg_spacing * 2.0)
+                depth = np.random.uniform(avg_spacing * 0.5, avg_spacing * 2.0)
                 self.create_scratch(
                     length=length,
                     width=width,
                     depth=depth
                 )
             elif defect_type == "local_deformation":
-                amplitude = np.random.uniform(
-                    scene_size * 0.002,
-                    scene_size * 0.012
-                )
+                radius = np.random.uniform(avg_spacing * 2.0, avg_spacing * 6.0)
+                amplitude = np.random.uniform(avg_spacing * 0.5, avg_spacing * 2.0)
                 self.create_local_deformation(
                     radius=radius,
                     amplitude=amplitude
