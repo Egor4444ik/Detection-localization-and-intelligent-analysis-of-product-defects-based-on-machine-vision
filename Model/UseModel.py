@@ -104,7 +104,7 @@ if __name__ == "__main__":
     base_obj = DeformedObject(original.copy())
 
     original_augmented = ObjectAugment(original.copy()).full_augment()
-    results = [("WithoutDeffects", original, np.zeros(len(original_augmented), dtype=np.int64))]
+    results = [("WithoutDeffects", original, np.zeros(len(original), dtype=np.int64))]
 
     dent_obj = DeformedObject(original.copy())
     dent_obj.create_dent(radius=scene_size*0.04, depth=scene_size*0.01)
