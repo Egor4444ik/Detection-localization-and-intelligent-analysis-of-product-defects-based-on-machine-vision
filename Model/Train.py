@@ -11,7 +11,6 @@ def train(input_3_dim_object_path):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
-    # Загружаем точки один раз
     points = np.loadtxt(input_3_dim_object_path)
     if points.ndim == 1:
         points = points.reshape(-1, 3)
@@ -29,9 +28,8 @@ def train(input_3_dim_object_path):
     dataset = ObjectsDataset(points, num_points=vertice, augment=True, category=0)
     val_dataset = ObjectsDataset(points, num_points=vertice, augment=False, category=0)
 
-    # Для отладки используем num_workers=0
-    train_loader = DataLoader(dataset, batch_size=26, shuffle=True, num_workers=0)
-    val_loader = DataLoader(val_dataset, batch_size=26, shuffle=False, num_workers=0)
+    train_loader = DataLoader(dataset, batch_size=26, shuffle=True, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=26, shuffle=False, num_workers=4)
 
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     criterion = nn.CrossEntropyLoss()
