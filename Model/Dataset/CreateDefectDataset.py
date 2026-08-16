@@ -1,7 +1,7 @@
 import numpy as np
 from .Augmentation import ObjectAugment
 
-class DeformedObject:
+class DeformedObject(ObjectAugment):
     OBJECT = 0
     DENT = 1
     BUMP = 2
@@ -14,6 +14,7 @@ class DeformedObject:
             points,
             dtype=np.float64
         )
+        super().__init__(points)
         self.center = None
         self.local_center = None
         self.normal = None
@@ -109,10 +110,7 @@ class DeformedObject:
             points[index].copy()
         )
 
-    def create_dent(
-            self,
-            radius,
-            depth):
+    def create_dent(self, radius, depth):
         self._select_center(
             self.points
         )
@@ -159,9 +157,7 @@ class DeformedObject:
             influence[mask, None]
         )
         self.points = new_points
-        self.labels[mask] = (
-            self.DENT
-        )
+        self.labels[mask] = (self.DENT)
         self.mask = mask
 
     def create_bump(
@@ -479,6 +475,6 @@ class DeformedObject:
                     amplitude=amplitude
                 )
 
-        augmented_points = ObjectAugment(self.points).full_augment()
+        self.full_augment()
 
-        return augmented_points, self.labels
+        return self.points, self.labels
