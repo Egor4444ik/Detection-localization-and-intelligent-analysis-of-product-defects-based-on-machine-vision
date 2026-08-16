@@ -93,7 +93,7 @@ def plot_comparison(points, true_labels, pred_labels, title=""):
     plotter.show(title=title, interactive=True)
 
 if __name__ == "__main__":
-    from.Dataset.Augmentation import ObjectAugment
+    from .Dataset.Augmentation import ObjectAugment
     input_file = "teapot.txt"
     model = load_model("best_model.pth", num_classes=6)
     original = np.loadtxt(input_file)
