@@ -8,12 +8,11 @@ class DeformedObject:
     CHIP = 3
     SCRATCH = 4
     LOCAL_DEFORMATION = 5
-    def __init__(self, points, radius):
+    def __init__(self, points):
         self.points = np.asarray(
             points,
             dtype=np.float64
         )
-        self.radius = radius
         self.center = None
         self.local_center = None
         self.normal = None
