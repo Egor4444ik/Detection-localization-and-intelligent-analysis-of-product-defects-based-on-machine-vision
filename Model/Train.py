@@ -40,7 +40,7 @@ def train(input_3_dim_object_path):
     eval_freq = 30
     step = 0
     best_iou = 0.0
-
+    
     for epoch in range(num_epochs):
         model.train()
         for pts, labels, cat in train_loader:
@@ -66,7 +66,7 @@ def train(input_3_dim_object_path):
                 print(f"Step {step}, Epoch {epoch+1:.2f}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}, Val mIoU: {val_iou:.4f}")
                 if val_iou > best_iou:
                     best_iou = val_iou
-                    torch.save(model.state_dict(), "best_model.pth")
+                    torch.save(model.state_dict(), f"best_model_{epoch+1:.2f}_epoch.pth")
                     print("  -> New best model saved.")
 
         print(f"Epoch {epoch+1} finished.")
