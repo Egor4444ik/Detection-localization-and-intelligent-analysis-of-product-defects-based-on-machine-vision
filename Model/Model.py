@@ -1,16 +1,14 @@
-# model.py
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 class GetGraph(nn.Module):
     def forward(self, point_cloud):
+        """Вычисление матрицы сходства по евклидовым расстояниям."""
         coords = point_cloud[..., :3]
-        # Нормализация: центрируем и масштабируем
         coords = coords - coords.mean(dim=1, keepdim=True)
         max_dist = coords.norm(dim=2, keepdim=True).max(dim=1, keepdim=True)[0] + 1e-8
         coords = coords / max_dist
-        # Далее как было
         trans = coords.permute(0, 2, 1)
         inner = -2 * torch.matmul(coords, trans)
         sq = torch.sum(coords ** 2, dim=2, keepdim=True)
@@ -18,17 +16,6 @@ class GetGraph(nn.Module):
         adj = sq + inner + sq_t
         return torch.exp(-adj)
 
-    
-#class GetGraph(nn.Module):
-#    """Вычисление матрицы сходства по евклидовым расстояниям."""
-#    def forward(self, point_cloud):
-#        coords = point_cloud[..., :3]
-#        trans = coords.permute(0, 2, 1)
-#        inner = -2 * torch.matmul(coords, trans)
-#        sq = torch.sum(coords ** 2, dim=2, keepdim=True)
-#        sq_t = sq.permute(0, 2, 1)
-#        adj = sq + inner + sq_t
-#        return torch.exp(-adj)
 
 class GetLaplacian(nn.Module):
     """Вычисление нормализованной матрицы Лапласа по формуле L = I - D^{-1/2} A D^{-1/2}."""

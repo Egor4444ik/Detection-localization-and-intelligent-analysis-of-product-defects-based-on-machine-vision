@@ -9,22 +9,16 @@ from torch.utils.data import DataLoader
 def evaluate_models(model_dir, model_names, points_file, vertice=4096, batch_size=8, num_workers=4):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Загружаем точки
     points = np.loadtxt(points_file)
-    # Создаём валидационный датасет (как в обучении)
     val_dataset = ObjectsDataset(points, num_points=vertice, category=0)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-    # Архитектура модели (должна совпадать с обучением)
-    # Укажите те же F и K, что были при обучении.
-    # В вашем последнем обучении F = [128, 512, 1024, 512, 128, 70]
-    F = [128, 512, 1024, 512, 128, 70]   # измените, если учили с другим
+    F = [128, 512, 1024, 512, 128, 70]
     K = [6, 5, 3, 1, 1, 1]
     num_classes = 6
     num_categories = 1
     regularization = 1e-9
 
-    # Шапка таблицы
     print(f"Using device: {device}")
     print(f"{'Model':<25} {'Val Loss':>10} {'Val Acc':>10} {'Val mIoU':>10}")
     print("-" * 60)
@@ -33,20 +27,14 @@ def evaluate_models(model_dir, model_names, points_file, vertice=4096, batch_siz
         model_path = os.path.join(model_dir, name)
         if not os.path.exists(model_path):
             continue
-        # Создаём модель с теми же параметрами
         model = RGCNN_Seg(vertice, F, K, num_classes, num_categories, regularization).to(device)
-        # Загружаем веса
         model.load_state_dict(torch.load(model_path, map_location=device, weights_only = True))
         model.eval()
-        # Оцениваем
         val_loss, val_acc, val_iou = evaluate_model(model, val_loader, device, num_classes)
         print(f"{name:<25} {val_loss:>10.4f} {val_acc:>10.4f} {val_iou:>10.4f}")
 
 if __name__ == "__main__":
-    # Путь к папке с моделями (обычно текущая)
     model_dir = "."
-    # Генерируем имена файлов от 1 до 28
     model_files = [f"best_model_{i}_epoch.pth" for i in range(1, 29)]
-    # Оставляем только существующие
     existing_files = [f for f in model_files if os.path.exists(os.path.join(model_dir, f))]
     evaluate_models(model_dir, existing_files, "teapot.txt")

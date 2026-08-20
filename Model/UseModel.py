@@ -1,4 +1,3 @@
-# UseModel.py
 import torch
 import numpy as np
 import pyvista
@@ -46,38 +45,6 @@ def compute_metrics(pred_labels, true_labels, num_classes=6):
     mean_iou = np.mean(iou_per_class)
     return conf, acc_per_class, iou_per_class, overall_acc, mean_iou
 
-def print_statistics(name, true_labels, pred_labels, probs, num_classes=6):
-    print(f"\n{'='*60}")
-    print(f"Объект: {name}")
-    print(f"Количество точек: {len(true_labels)}")
-    
-    true_counts = np.bincount(true_labels, minlength=num_classes)
-    print("\nРаспределение истинных меток:")
-    for c in range(num_classes):
-        print(f"  Class {c}: {true_counts[c]} points ({100*true_counts[c]/len(true_labels):.2f}%)")
-    
-    pred_counts = np.bincount(pred_labels, minlength=num_classes)
-    print("\nРаспределение предсказанных меток:")
-    for c in range(num_classes):
-        print(f"  Class {c}: {pred_counts[c]} points ({100*pred_counts[c]/len(pred_labels):.2f}%)")
-    
-    mean_probs = np.mean(probs, axis=0)
-    print("\nСредние вероятности по классам:")
-    for c in range(num_classes):
-        print(f"  Class {c}: {mean_probs[c]:.4f}")
-    
-    conf, acc, iou, overall_acc, mean_iou = compute_metrics(pred_labels, true_labels, num_classes)
-    print(f"\nOverall Accuracy: {overall_acc:.4f}")
-    print(f"Mean IoU: {mean_iou:.4f}")
-    print("Per-class IoU:")
-    for c in range(num_classes):
-        print(f"  Class {c}: {iou[c]:.4f}")
-    print("Per-class Accuracy:")
-    for c in range(num_classes):
-        print(f"  Class {c}: {acc[c]:.4f}")
-    print(f"\nConfusion matrix (rows=true, cols=pred):")
-    print(conf)
-
 def plot_comparison(points, pred_labels, title=""):
     plotter = pyvista.Plotter()
     plotter.add_points(points, scalars=pred_labels, cmap=['blue','red','green','yellow','magenta','brown'], 
@@ -85,18 +52,6 @@ def plot_comparison(points, pred_labels, title=""):
     plotter.show(title=title, interactive=True)
 
 def compute_defect_metrics(points, labels, class_ids=[1, 2, 3, 4, 5]):
-    """
-    Вычисляет метрики для каждого класса дефектов.
-
-    Параметры:
-        points : np.ndarray, форма (N, 3) – координаты точек.
-        labels : np.ndarray, форма (N,) – метки классов (0 – фон, 1–5 – дефекты).
-        class_ids : list – список классов дефектов для анализа.
-
-    Возвращает:
-        dict: {class_id: {'depth': float, 'min_diameter': float, 'max_diameter': float}}
-              или None, если точек в классе меньше 3.
-    """
     metrics = {}
     for cls in class_ids:
         mask = (labels == cls)
@@ -105,28 +60,21 @@ def compute_defect_metrics(points, labels, class_ids=[1, 2, 3, 4, 5]):
             metrics[cls] = None
             continue
 
-        # Центрирование
         centered = pts - pts.mean(axis=0)
-        # Ковариационная матрица
         cov = np.cov(centered.T)
-        # Собственные значения и векторы (eigh возвращает по возрастанию)
         eigvals, eigvecs = np.linalg.eigh(cov)
-        # Сортировка по убыванию собственных значений
         idx = np.argsort(eigvals)[::-1]
         eigvals = eigvals[idx]
-        eigvecs = eigvecs[:, idx]   # столбцы – главные компоненты
+        eigvecs = eigvecs[:, idx]
 
-        # Проекции точек на главные компоненты
         proj = centered @ eigvecs
-        # Размахи по каждой компоненте
         ranges = proj.max(axis=0) - proj.min(axis=0)
-        # Сортировка размахов по убыванию
         sorted_ranges = np.sort(ranges)[::-1]
 
         metrics[cls] = {
-            'depth': sorted_ranges[2],          # минимальный размах (толщина)
-            'min_diameter': sorted_ranges[1],   # средний размах
-            'max_diameter': sorted_ranges[0]    # максимальный размах
+            'depth': sorted_ranges[2],       
+            'min_diameter': sorted_ranges[1],
+            'max_diameter': sorted_ranges[0] 
         }
 
     print(metrics)
@@ -189,8 +137,6 @@ if __name__ == "__main__":
             logits = model(pts_tensor, cat_t)
             probs = torch.softmax(logits, dim=2).squeeze(0).cpu().numpy()
             pred_labels = np.argmax(probs, axis=1)
-        
-        #print_statistics(name, true_labels, pred_labels, probs)
         compute_defect_metrics(selected_pts, pred_labels)
         
         plot_comparison(selected_pts, pred_labels, title=name)
