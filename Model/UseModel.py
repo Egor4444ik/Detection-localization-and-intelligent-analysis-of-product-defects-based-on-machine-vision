@@ -47,7 +47,7 @@ def compute_metrics(pred_labels, true_labels, num_classes=6):
 
 def plot_comparison(points, pred_labels, title=""):
     plotter = pyvista.Plotter()
-    plotter.add_points(points, scalars=pred_labels, cmap=['blue','red','green','yellow','magenta','brown'], 
+    plotter.add_points(points, scalars=pred_labels, cmap=['blue','red','red','red','red','red'], 
                        point_size=8, render_points_as_spheres=False)
     plotter.show(title=title, interactive=True)
 
