@@ -13,12 +13,9 @@ def train(input_3_dim_object_path):
     print(f"Using device: {device}")
 
     points = np.loadtxt(input_3_dim_object_path)
-    if points.ndim == 1:
-        points = points.reshape(-1, 3)
-    print(f"Loaded {len(points)} points.")
 
-    vertice = 11755
-    F = [128, 512, 1024, 512, 128, 6]
+    vertice = 4096
+    F = [128, 512, 1024, 512, 128, 70]
     K = [6, 5, 3, 1, 1, 1]
     num_classes = 6
     num_categories = 1
@@ -26,16 +23,13 @@ def train(input_3_dim_object_path):
 
     model = RGCNN_Seg(vertice, F, K, num_classes, num_categories, regularization).to(device)
 
-    dataset = ObjectsDataset(points, num_points=vertice, category=0)
-    val_dataset = ObjectsDataset(points, num_points=vertice, category=0)
+    dataset = ObjectsDataset(points, num_points=model.vertice, category=0)
+    val_dataset = ObjectsDataset(points, num_points=model.vertice, category=0)
 
-    train_loader = DataLoader(dataset, batch_size=26, shuffle=True, num_workers=8)
-    val_loader = DataLoader(val_dataset, batch_size=26, shuffle=False, num_workers=8)
+    train_loader = DataLoader(dataset, batch_size=17, shuffle=True, num_workers=9)
+    val_loader = DataLoader(val_dataset, batch_size=17, shuffle=False, num_workers=9)
 
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
-
-    criterion_ce = FocalLoss(alpha=0.25, gamma=2.0)
-
     num_epochs = 50
     eval_freq = 30
     step = 0
@@ -48,15 +42,22 @@ def train(input_3_dim_object_path):
             optimizer.zero_grad()
 
             logits = model(pts, cat)
-
+            
+            #criterion = nn.CrossEntropyLoss(weight = class_weights)
+            #loss = criterion(logits.permute(0, 2, 1), labels)
+            criterion_ce = FocalLoss(alpha=0.25, gamma=2.0, pts = pts, labels = labels, vertice = vertice)
             ce_loss = criterion_ce(logits, labels)
             dice = dice_loss(logits, labels, num_classes=6)
-            loss = ce_loss + dice
+            loss = ce_loss + 0.1 * dice
 
             reg_loss = sum(p.norm(2) for p in model.parameters()) * 1e-5
             total_loss = loss + reg_loss
 
             total_loss.backward()
+            total_norm = 0
+            for p in model.parameters():
+                if p.grad is not None:
+                    total_norm += p.grad.norm(2).item()
             optimizer.step()
 
             step += 1
@@ -66,7 +67,7 @@ def train(input_3_dim_object_path):
                 print(f"Step {step}, Epoch {epoch+1:.2f}, Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}, Val mIoU: {val_iou:.4f}")
                 if val_iou > best_iou:
                     best_iou = val_iou
-                    torch.save(model.state_dict(), f"best_model_{epoch+1:.2f}_epoch.pth")
+                    torch.save(model.state_dict(), f"best_model_{epoch+1}_epoch.pth")
                     print("  -> New best model saved.")
 
         print(f"Epoch {epoch+1} finished.")

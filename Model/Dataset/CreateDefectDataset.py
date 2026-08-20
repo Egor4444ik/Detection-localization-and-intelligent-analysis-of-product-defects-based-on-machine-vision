@@ -369,40 +369,41 @@ class DeformedObject(ObjectAugment):
                 scene_size * 0.15
             )
             avg_spacing = 2*scene_size / (len(self.points) ** (1/3))
+            low_random_spacing, high_random_spacing = avg_spacing * 0.5, avg_spacing * 1
             
             if defect_type == "dent":
-                radius = np.random.uniform(avg_spacing * 2.0, avg_spacing * 6.0)
-                depth = np.random.uniform(avg_spacing * 0.5, avg_spacing * 2.0)                
+                radius = np.random.uniform(low_random_spacing, high_random_spacing)
+                depth = np.random.uniform(low_random_spacing, high_random_spacing)                
                 self.create_dent(
                     radius=radius,
                     depth=depth
                 )
             elif defect_type == "bump":
-                radius = np.random.uniform(avg_spacing * 2.0, avg_spacing * 6.0)
-                height = np.random.uniform(avg_spacing * 0.5, avg_spacing * 2.0)
+                radius = np.random.uniform(low_random_spacing, high_random_spacing)
+                height = np.random.uniform(low_random_spacing, high_random_spacing)
                 self.create_bump(
                     radius=radius,
                     height=height
                 )
             elif defect_type == "chip":
-                radius = np.random.uniform(avg_spacing * 2.0, avg_spacing * 6.0)
-                depth = np.random.uniform(avg_spacing * 0.5, avg_spacing * 2.0)
+                radius = np.random.uniform(low_random_spacing, high_random_spacing)
+                depth = np.random.uniform(low_random_spacing, high_random_spacing)
                 self.create_chip(
                     radius=radius,
                     depth=depth
                 )
             elif defect_type == "scratch":
-                length = np.random.uniform(avg_spacing * 4.0, avg_spacing * 15.0)
-                width = np.random.uniform(avg_spacing * 0.5, avg_spacing * 2.0)
-                depth = np.random.uniform(avg_spacing * 0.5, avg_spacing * 2.0)
+                length = np.random.uniform(low_random_spacing, high_random_spacing)
+                width = np.random.uniform(low_random_spacing, high_random_spacing)
+                depth = np.random.uniform(low_random_spacing, high_random_spacing)
                 self.create_scratch(
                     length=length,
                     width=width,
                     depth=depth
                 )
             elif defect_type == "local_deformation":
-                radius = np.random.uniform(avg_spacing * 2.0, avg_spacing * 6.0)
-                amplitude = np.random.uniform(avg_spacing * 0.5, avg_spacing * 2.0)
+                radius = np.random.uniform(low_random_spacing, high_random_spacing)
+                amplitude = np.random.uniform(low_random_spacing, high_random_spacing)
                 self.create_local_deformation(
                     radius=radius,
                     amplitude=amplitude

@@ -6,7 +6,7 @@ import os
 from .CreateDefectDataset import DeformedObject
 
 class ObjectsDataset(Dataset):
-    def __init__(self, input_points, num_points=11755, category=0):
+    def __init__(self, input_points, num_points=4096, category=0):
         self.num_points = num_points
         self.category = category
         self.original_points = input_points
@@ -36,5 +36,4 @@ class ObjectsDataset(Dataset):
         pts_tensor = torch.from_numpy(points_aug).float()
         labels_tensor = torch.from_numpy(labels).long()
         cat_tensor = torch.tensor(self.category, dtype=torch.long)
-        print(f"Уникальных меток: {np.unique(labels)}, в количестве этих классов: {np.bincount(labels)}")
         return pts_tensor, labels_tensor, cat_tensor
